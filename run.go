@@ -2,14 +2,33 @@ package main
 
 import (
 	amcrest "amcrest/Amcrest"
-	"bytes"
 	"fmt"
-	"io"
+	_ "fmt"
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 )
+
+func saveFrame(camera *amcrest.Camera, filename string) {
+	frame, err := camera.GetSnapshot()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Error creating file: %v", err)
+	}
+	defer file.Close()
+
+	// Write the []byte directly to the file
+	_, err = file.Write(frame)
+	if err != nil {
+		log.Fatalf("Error saving image to file: %v", err)
+	}
+}
 
 func main() {
 
@@ -19,40 +38,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Use the strings directly as raw keys
+	// // Use the strings directly as raw keys
 	uri := os.Getenv("URI")
-	username := os.Getenv("USERNAME")
+	loginname := os.Getenv("LOGINNAME")
 	password := os.Getenv("PASSWORD")
 
-	camera := amcrest.Init(uri)
+	camera := amcrest.Init(uri, loginname, password)
 
-	err = camera.LoadAuth(username, password)
-
-	if err != nil {
-		log.Fatal(err)
+	for i := 0; i < 1; i++ {
+		filename := fmt.Sprintf("frame_%d.jpg", i)
+		saveFrame(camera, filename)
 	}
-
-	frame, err := camera.GetSnapshot()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	file, err := os.Create("./test.jpg")
-	if err != nil {
-		log.Fatalf("Error creating file: %v", err)
-	}
-	defer file.Close()
-
-	// Wrap the []byte in an io.Reader using bytes.NewReader
-	reader := bytes.NewReader(frame)
-
-	// Write response body to file
-	_, err = io.Copy(file, reader)
-	if err != nil {
-		log.Fatalf("Error saving response to file: %v", err)
-	}
-
-	fmt.Println("Successfully saved file!")
 
 }

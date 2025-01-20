@@ -18,12 +18,19 @@ import (
 )
 
 type Camera struct {
-	URI    string
-	Client *http.Client
-	Auth   string
+	URI      string
+	Client   *http.Client
+	Username string
+	Password string
+	Realm    string
+	Nonce    string
+	Qop      string
+	Opaque   string
+	NC       string
+	Cnonce   string
 }
 
-func Init(uri string) *Camera {
+func Init(uri string, username string, password string) *Camera {
 
 	proxyURL, err := url.Parse("http://127.0.0.1:8080")
 
@@ -43,10 +50,14 @@ func Init(uri string) *Camera {
 		Transport: transport,
 	}
 
-	return &Camera{URI: uri, Client: client}
+	return &Camera{URI: uri, Username: username, Password: password, Client: client}
 }
 
-func (cam *Camera) LoadAuth(username string, password string) error {
+func (cam *Camera) SetNounceCount(nc string) {
+	// cam.NounceCount = nc
+}
+
+func (cam *Camera) LoadAuth() (string, error) {
 
 	// Initial request to get WWW-Authenticate header
 
@@ -59,64 +70,66 @@ func (cam *Camera) LoadAuth(username string, password string) error {
 	res, err := cam.Client.Do(req)
 	if err != nil {
 		log.Fatalf("Error making initial request: %v", err)
-		return err
+		return "", err
 	}
 	defer res.Body.Close()
 
 	// Check for 401 Unauthorized
 	if res.StatusCode != http.StatusUnauthorized {
-		return fmt.Errorf("Expected 401 Unauthorized, got %v", res.Status)
+		return "", fmt.Errorf("expected 401 Unauthorized, got %v", res.Status)
 
 	}
 
 	// Parse the WWW-Authenticate header
 	authHeader := res.Header.Get("WWW-Authenticate")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Digest") {
-		return fmt.Errorf("Digest authentication not supported or invalid WWW-Authenticate header: %s", authHeader)
+		return "", fmt.Errorf("digest authentication not supported or invalid WWW-Authenticate header: %s", authHeader)
 	}
 	params := parseAuthHeader(authHeader)
 
 	// Extract parameters
-	method := "GET"
-	uri := "/cgi-bin/snapshot.cgi"
 	realm := params["realm"]
 	nonce := params["nonce"]
 	qop := params["qop"]
 	opaque := params["opaque"] // Ensure opaque is extracted and non-empty
-	nc := "00000001"           // Nonce count, starts with 1
+	nc := "00000001"
 	cnonce := generateCnonce() // Generate a unique cnonce for every request
 
-	// Log extracted values for debugging
-	// log.Printf("Extracted Params: realm=%s, nonce=%s, qop=%s, opaque=%s", realm, nonce, qop, opaque)
+	method := "GET"
+	uri := "/cgi-bin/snapshot.cgi"
 
 	// Compute HA1, HA2, and response hashes
-	ha1 := md5Hash(fmt.Sprintf("%s:%s:%s", username, realm, password))
+	ha1 := md5Hash(fmt.Sprintf("%s:%s:%s", cam.Username, realm, cam.Password))
 	ha2 := md5Hash(fmt.Sprintf("%s:%s", method, uri))
 	response := md5Hash(fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, nonce, nc, cnonce, qop, ha2))
 
 	// Build the Authorization header
-	cam.Auth = fmt.Sprintf(
+	return fmt.Sprintf(
 		`Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s", qop=%s, nc=%s, cnonce="%s", opaque="%s"`,
-		username, realm, nonce, uri, response, qop, nc, cnonce, opaque,
-	)
-
-	return nil
+		cam.Username, realm, nonce, uri, response, qop, nc, cnonce, opaque,
+	), nil
 
 }
 
 func (cam *Camera) GetSnapshot() ([]byte, error) {
 
+	auth, err := cam.LoadAuth()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Second request with Digest Authorization header
 	req, err := http.NewRequest("GET", cam.URI, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating second request: %v", err)
+		//return nil, fmt.Errorf("error creating second request: %v", err)
 	}
-	req.Header.Set("Authorization", cam.Auth)
+	req.Header.Set("Authorization", auth)
 
 	// Perform the authenticated request
 	res, err := cam.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error making authenticated request: %v", err)
+		//return nil, fmt.Errorf("error making authenticated request: %v", err)
 	}
 	defer res.Body.Close()
 
