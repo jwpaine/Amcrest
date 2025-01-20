@@ -99,10 +99,8 @@ func compareImages(img1, img2 image.Image) {
 	bounds := img1.Bounds()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			colors_1 := img1.At(x, y)
-			r1, g1, b1, a1 := colors_1.RGBA()
-			colors_2 := img2.At(x, y)
-			r2, g2, b2, a2 := colors_2.RGBA()
+			colors := img1.At(x, y)
+			r1, g1, b1, a1 := colors.RGBA()
 
 		}
 	}
