@@ -11,7 +11,6 @@ import (
 	//"io"
 	"log"
 	"net/http"
-	"net/url"
 
 	//"os"
 	"strings"
@@ -22,24 +21,18 @@ type Camera struct {
 	Client   *http.Client
 	Username string
 	Password string
-	Realm    string
-	Nonce    string
-	Qop      string
-	Opaque   string
-	NC       string
-	Cnonce   string
 }
 
 func Init(uri string, username string, password string) *Camera {
 
-	proxyURL, err := url.Parse("http://127.0.0.1:8080")
+	// proxyURL, err := url.Parse("http://127.0.0.1:8080")
 
-	if err != nil {
-		log.Fatalf("Invalid proxy URL: %v", err)
-	}
+	// if err != nil {
+	// 	log.Fatalf("Invalid proxy URL: %v", err)
+	// }
 
 	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
+	//	Proxy: http.ProxyURL(proxyURL),
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
